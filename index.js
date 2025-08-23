@@ -295,6 +295,45 @@ app.post('/sync/webhook', async (req, res) => {
     }
 });
 
+// Endpoint para webhooks de Drive (TIEMPO REAL)
+app.post('/sync/webhook', async (req, res) => {
+    console.log('📩 Notificación de Drive recibida en tiempo real!');
+    console.log('Headers:', req.headers);
+
+    // Responder inmediatamente a Drive (importante)
+    res.status(200).send('✅ Notificación recibida');
+
+    // Procesar en segundo plano
+    setTimeout(async () => {
+        try {
+            const auth = new GoogleAuth({
+                keyFilename: process.env.GOOGLE_APPLICATION_CREDENTIALS || 'drive-key.json',
+                scopes: ['https://www.googleapis.com/auth/drive']
+            });
+
+            const client = await auth.getClient();
+            const token = (await client.getAccessToken()).token;
+
+            // Extraer información del cambio
+            const resourceId = req.headers['x-goog-resource-id'];
+            const resourceState = req.headers['x-goog-resource-state'];
+
+            console.log('🔄 Procesando cambio en tiempo real:');
+            console.log('   Resource ID:', resourceId);
+            console.log('   Resource State:', resourceState);
+
+            if (resourceState === 'change') {
+                // Aquí va tu lógica para sincronizar el archivo específico
+                console.log('📤 Sincronizando archivo cambiado...');
+                // await syncSingleFile(resourceId, token);
+            }
+
+        } catch (error) {
+            console.error('❌ Error procesando notificación:', error);
+        }
+    }, 1000);
+});
+
 // Función de ejemplo para extraer fileId (debes adaptarla)
 function extractFileIdFromMessage(message) {
     try {
