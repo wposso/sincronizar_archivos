@@ -1,21 +1,34 @@
 const { Storage } = require('@google-cloud/storage');
 const { GoogleAuth } = require('google-auth-library');
 const fetch = require('node-fetch');
+const express = require('express');
 
-// Configuración (puedes usar variables de entorno)
+// Configuración
 const BUCKET_NAME = process.env.BUCKET_NAME || "talenthub_central";
 const ROOT_FOLDER_ID = process.env.ROOT_FOLDER_ID || "1PcnN9zwjl9w_b9y99zS6gKWMhwIVdqfD";
+const PORT = process.env.PORT || 8080;
 
 // Cliente de Google Cloud Storage
 const storage = new Storage();
+const app = express();
+
+// Middleware básico
+app.use(express.json());
 
 // Variable global para almacenar el último tiempo de sync
 let lastSyncTime = '2000-01-01T00:00:00.000Z';
 
 /**
- * Función principal que se ejecuta en Cloud Run/Functions
+ * Ruta principal que Cloud Run health check requiere
  */
-exports.syncDriveToGCS = async (req, res) => {
+app.get('/', (req, res) => {
+    res.status(200).send('✅ Servicio de sincronización Drive to GCS activo');
+});
+
+/**
+ * Ruta para ejecutar la sincronización manualmente
+ */
+app.post('/sync', async (req, res) => {
     console.log("🔍 Iniciando sincronización incremental de Drive a GCS");
 
     try {
@@ -30,7 +43,7 @@ exports.syncDriveToGCS = async (req, res) => {
         const client = await auth.getClient();
         const token = (await client.getAccessToken()).token;
 
-        // Obtener última fecha de ejecución (aquí usamos una variable, en producción usarías Firestore/Cloud Storage)
+        // Obtener última fecha de ejecución
         lastSyncTime = await getLastSyncTime();
         const currentTime = new Date().toISOString();
 
@@ -59,7 +72,53 @@ Carpetas: ${stats.folders}`);
             message: error.message
         });
     }
-};
+});
+
+/**
+ * Ruta para sincronización completa
+ */
+app.post('/sync-full', async (req, res) => {
+    console.log("🔄 Iniciando sincronización COMPLETA");
+
+    // Resetear última sincronización
+    lastSyncTime = '2000-01-01T00:00:00.000Z';
+
+    // Ejecutar sincronización incremental que procesará todo
+    try {
+        const auth = new GoogleAuth({
+            scopes: [
+                'https://www.googleapis.com/auth/drive',
+                'https://www.googleapis.com/auth/cloud-platform'
+            ]
+        });
+
+        const client = await auth.getClient();
+        const token = (await client.getAccessToken()).token;
+
+        const stats = await processFolderIncremental(ROOT_FOLDER_ID, "", token, lastSyncTime);
+
+        res.status(200).json({
+            status: 'success',
+            message: 'Sincronización completa completada',
+            stats: stats
+        });
+
+    } catch (error) {
+        console.error("❌ Error en sincronización completa:", error);
+        res.status(500).json({
+            status: 'error',
+            message: error.message
+        });
+    }
+});
+
+// ✅ SERVIR LA APP EN EL PUERTO OBLIGATORIO
+app.listen(PORT, () => {
+    console.log(`🚀 Servidor ejecutándose en puerto ${PORT}`);
+    console.log(`📌 Health check disponible en: http://localhost:${PORT}/`);
+    console.log(`🔄 Sincronización incremental: POST http://localhost:${PORT}/sync`);
+    console.log(`🔄 Sincronización completa: POST http://localhost:${PORT}/sync-full`);
+});
 
 /**
  * Procesa carpetas recursivamente solo con archivos modificados
@@ -220,20 +279,5 @@ async function setLastSyncTime(time) {
     lastSyncTime = time;
 }
 
-/**
- * Función para sincronización completa
- */
-exports.syncDriveToGCSFull = async (req, res) => {
-    console.log("🔄 Iniciando sincronización COMPLETA");
-
-    // Resetear última sincronización
-    lastSyncTime = '2000-01-01T00:00:00.000Z';
-
-    // Ejecutar incremental que procesará todo
-    await this.syncDriveToGCS(req, res);
-};
-
-// Para ejecución local (opcional)
-if (require.main === module) {
-    exports.syncDriveToGCS({}, { status: (code) => ({ send: (msg) => console.log(msg) }) });
-}
+// Exportar para testing
+module.exports = { app, processFolderIncremental };
