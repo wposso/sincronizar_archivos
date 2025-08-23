@@ -263,44 +263,11 @@ async function uploadBlobToGCS(bucket, objectName, blob, contentType, token) {
     console.log(`✅ Archivo subido: ${objectName}`);
 }
 
-// Agrega este endpoint ESPECÍFICO para mensajes de Pub/Sub
-app.post('/sync/webhook', async (req, res) => {
-    try {
-        console.log('📩 Mensaje recibido de Pub/Sub');
-
-        // Los mensajes de Pub/Sub vienen en formato especial
-        if (req.body.message && req.body.message.data) {
-            const messageData = Buffer.from(req.body.message.data, 'base64').toString();
-            console.log('Contenido del mensaje:', messageData);
-
-            // Aquí procesarías el mensaje para saber qué archivo sincronizar
-            const auth = new GoogleAuth({ scopes: ['https://www.googleapis.com/auth/drive'] });
-            const client = await auth.getClient();
-            const token = (await client.getAccessToken()).token;
-
-            // Extraer el ID del archivo que cambió (depende del formato del mensaje)
-            // Esto es un ejemplo - necesitarías adaptarlo al formato real
-            const fileId = extractFileIdFromMessage(messageData);
-
-            if (fileId) {
-                await syncSingleFile(fileId, token);
-                console.log('✅ Archivo sincronizado desde Pub/Sub');
-            }
-        }
-
-        res.status(200).send('✅ Procesado');
-    } catch (error) {
-        console.error('❌ Error procesando mensaje Pub/Sub:', error);
-        res.status(500).send('Error');
-    }
-});
-
 // Endpoint para webhooks de Drive (TIEMPO REAL)
 app.post('/sync/webhook', async (req, res) => {
     console.log('📩 Notificación de Drive recibida en tiempo real!');
-    console.log('Headers:', req.headers);
 
-    // Responder inmediatamente a Drive (importante)
+    // Responder inmediatamente a Drive (IMPORTANTE para no saturar)
     res.status(200).send('✅ Notificación recibida');
 
     // Procesar en segundo plano
@@ -314,18 +281,31 @@ app.post('/sync/webhook', async (req, res) => {
             const client = await auth.getClient();
             const token = (await client.getAccessToken()).token;
 
-            // Extraer información del cambio
+            // Extraer información del cambio de los headers
             const resourceId = req.headers['x-goog-resource-id'];
             const resourceState = req.headers['x-goog-resource-state'];
+            const resourceUri = req.headers['x-goog-resource-uri'];
 
             console.log('🔄 Procesando cambio en tiempo real:');
             console.log('   Resource ID:', resourceId);
             console.log('   Resource State:', resourceState);
+            console.log('   Resource URI:', resourceUri);
 
-            if (resourceState === 'change') {
-                // Aquí va tu lógica para sincronizar el archivo específico
-                console.log('📤 Sincronizando archivo cambiado...');
-                // await syncSingleFile(resourceId, token);
+            if (resourceState === 'change' || resourceState === 'update') {
+                // Obtener detalles del archivo cambiado
+                const drive = google.drive({ version: 'v3', auth: client });
+                const file = await drive.files.get({
+                    fileId: resourceId,
+                    fields: 'id, name, mimeType, modifiedTime'
+                });
+
+                console.log('📤 Sincronizando archivo:', file.data.name);
+
+                // Descargar y subir el archivo
+                const blob = await downloadDriveFileREST(resourceId, file.data.mimeType, token);
+                await uploadBlobToGCS(BUCKET_NAME, file.data.name, blob, file.data.mimeType, token);
+
+                console.log('✅ Archivo sincronizado en tiempo real:', file.data.name);
             }
 
         } catch (error) {
