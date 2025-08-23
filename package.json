@@ -1,0 +1,14 @@
+{
+    "name": "drive-to-gcs-sync",
+    "version": "1.0.0",
+    "description": "Sincronización incremental de Google Drive a Google Cloud Storage",
+    "main": "index.js",
+    "dependencies": {
+        "@google-cloud/storage": "^7.0.0",
+        "google-auth-library": "^9.0.0",
+        "node-fetch": "^2.6.7"
+    },
+    "engines": {
+        "node": ">=18.0.0"
+    }
+}
