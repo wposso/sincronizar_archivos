@@ -263,6 +263,50 @@ async function uploadBlobToGCS(bucket, objectName, blob, contentType, token) {
     console.log(`✅ Archivo subido: ${objectName}`);
 }
 
+// Agrega este endpoint ESPECÍFICO para mensajes de Pub/Sub
+app.post('/sync/webhook', async (req, res) => {
+    try {
+        console.log('📩 Mensaje recibido de Pub/Sub');
+
+        // Los mensajes de Pub/Sub vienen en formato especial
+        if (req.body.message && req.body.message.data) {
+            const messageData = Buffer.from(req.body.message.data, 'base64').toString();
+            console.log('Contenido del mensaje:', messageData);
+
+            // Aquí procesarías el mensaje para saber qué archivo sincronizar
+            const auth = new GoogleAuth({ scopes: ['https://www.googleapis.com/auth/drive'] });
+            const client = await auth.getClient();
+            const token = (await client.getAccessToken()).token;
+
+            // Extraer el ID del archivo que cambió (depende del formato del mensaje)
+            // Esto es un ejemplo - necesitarías adaptarlo al formato real
+            const fileId = extractFileIdFromMessage(messageData);
+
+            if (fileId) {
+                await syncSingleFile(fileId, token);
+                console.log('✅ Archivo sincronizado desde Pub/Sub');
+            }
+        }
+
+        res.status(200).send('✅ Procesado');
+    } catch (error) {
+        console.error('❌ Error procesando mensaje Pub/Sub:', error);
+        res.status(500).send('Error');
+    }
+});
+
+// Función de ejemplo para extraer fileId (debes adaptarla)
+function extractFileIdFromMessage(message) {
+    try {
+        const data = JSON.parse(message);
+        return data.id || data.fileId || null;
+    } catch (e) {
+        console.log('Mensaje no es JSON, buscando patrones...');
+        // Aquí lógica para extraer el ID de diferentes formatos
+        return null;
+    }
+}
+
 /**
  * Obtiene último tiempo de sincronización (simplificado)
  */
