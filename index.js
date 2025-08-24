@@ -326,6 +326,41 @@ function extractFileIdFromMessage(message) {
     }
 }
 
+// Función de polling para sincronización en tiempo real
+async function startPolling() {
+    console.log('🔄 Iniciando polling cada 30 segundos...');
+
+    setInterval(async () => {
+        try {
+            console.log('⏰ Polling: Buscando cambios...');
+
+            const auth = new GoogleAuth({
+                keyFilename: process.env.GOOGLE_APPLICATION_CREDENTIALS || 'drive-key.json',
+                scopes: ['https://www.googleapis.com/auth/drive']
+            });
+
+            const client = await auth.getClient();
+            const token = (await client.getAccessToken()).token;
+
+            const lastRun = await getLastSyncTime();
+            const currentTime = new Date().toISOString();
+
+            const stats = await processFolderIncremental(ROOT_FOLDER_ID, "", token, lastRun);
+            await setLastSyncTime(currentTime);
+
+            if (stats.ok > 0) {
+                console.log(`✅ Polling: ${stats.ok} archivos sincronizados`);
+            }
+
+        } catch (error) {
+            console.error('❌ Error en polling:', error.message);
+        }
+    }, 30000); // 30 segundos
+}
+
+// Iniciar polling cuando el servidor arranque
+startPolling();
+
 /**
  * Obtiene último tiempo de sincronización (simplificado)
  */
