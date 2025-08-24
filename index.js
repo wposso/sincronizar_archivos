@@ -314,25 +314,14 @@ app.post('/sync/webhook', async (req, res) => {
     }, 1000);
 });
 
-// Función de ejemplo para extraer fileId (debes adaptarla)
-function extractFileIdFromMessage(message) {
-    try {
-        const data = JSON.parse(message);
-        return data.id || data.fileId || null;
-    } catch (e) {
-        console.log('Mensaje no es JSON, buscando patrones...');
-        // Aquí lógica para extraer el ID de diferentes formatos
-        return null;
-    }
-}
+const POLLING_INTERVAL = 30000; // 30 segundos
 
-// Función de polling para sincronización en tiempo real
-async function startPolling() {
-    console.log('🔄 Iniciando polling cada 30 segundos...');
+async function startDrivePolling() {
+    console.log(`🔄 Iniciando polling automático cada ${POLLING_INTERVAL / 1000} segundos...`);
 
     setInterval(async () => {
         try {
-            console.log('⏰ Polling: Buscando cambios...');
+            console.log('⏰ Polling: Buscando cambios en Drive...');
 
             const auth = new GoogleAuth({
                 keyFilename: process.env.GOOGLE_APPLICATION_CREDENTIALS || 'drive-key.json',
@@ -342,24 +331,26 @@ async function startPolling() {
             const client = await auth.getClient();
             const token = (await client.getAccessToken()).token;
 
+            // Usar una ventana de tiempo de 5 minutos para asegurar
+            const fiveMinutesAgo = new Date(Date.now() - 5 * 60000).toISOString();
             const lastRun = await getLastSyncTime();
-            const currentTime = new Date().toISOString();
+            const modifiedSince = lastRun < fiveMinutesAgo ? fiveMinutesAgo : lastRun;
 
-            const stats = await processFolderIncremental(ROOT_FOLDER_ID, "", token, lastRun);
-            await setLastSyncTime(currentTime);
+            const stats = await processFolderIncremental(ROOT_FOLDER_ID, "", token, modifiedSince);
+            await setLastSyncTime(new Date().toISOString());
 
             if (stats.ok > 0) {
-                console.log(`✅ Polling: ${stats.ok} archivos sincronizados`);
+                console.log(`✅ Polling: ${stats.ok} archivos sincronizados automáticamente`);
             }
 
         } catch (error) {
-            console.error('❌ Error en polling:', error.message);
+            console.error('❌ Error en polling automático:', error.message);
         }
-    }, 30000); // 30 segundos
+    }, POLLING_INTERVAL);
 }
 
 // Iniciar polling cuando el servidor arranque
-startPolling();
+startDrivePolling();
 
 /**
  * Obtiene último tiempo de sincronización (simplificado)
