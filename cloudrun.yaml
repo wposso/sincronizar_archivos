@@ -1,0 +1,24 @@
+apiVersion: serving.knative.dev/v1
+kind: Service
+metadata:
+  name: drive-to-gcs-sync
+spec:
+  template:
+    spec:
+      containers:
+      - image: gcr.io/YOUR-PROJECT-ID/drive-to-gcs-sync
+        ports:
+        - containerPort: 8080
+        env:
+        - name: BUCKET_NAME
+          value: "talenthub_central"
+        - name: ROOT_FOLDER_ID
+          value: "1PcnN9zwjl9w_b9y99zS6gKWMhwIVdqfD"
+        - name: WEBHOOK_URL
+          value: "https://your-service-url.a.run.app"
+        - name: PORT
+          value: "8080"
+        resources:
+          limits:
+            memory: 512Mi
+            cpu: 1000m

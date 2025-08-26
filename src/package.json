@@ -1,0 +1,21 @@
+{
+    "name": "drive-to-gcs-sync",
+    "version": "1.0.0",
+    "description": "Sincronización en tiempo real de Google Drive a Google Cloud Storage",
+    "main": "index.js",
+    "scripts": {
+        "start": "node index.js",
+        "dev": "nodemon index.js"
+    },
+    "dependencies": {
+        "@google-cloud/storage": "^7.0.0",
+        "@google-cloud/firestore": "^6.0.0",
+        "google-auth-library": "^9.0.0",
+        "googleapis": "^126.0.1",
+        "express": "^4.18.2",
+        "node-fetch": "^2.6.7"
+    },
+    "devDependencies": {
+        "nodemon": "^3.0.1"
+    }
+}
