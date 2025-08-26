@@ -1,0 +1,8 @@
+{
+  "name": "sincronizar-archivos",
+  "version": "1.0.0",
+  "description": "Build configuration for Cloud Build",
+  "scripts": {
+    "build": "echo 'Build handled by Cloud Build'"
+  }
+}

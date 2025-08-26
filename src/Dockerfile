@@ -12,9 +12,5 @@ COPY . .
 # Exponer el puerto
 EXPOSE 8080
 
-# Salud de la aplicación
-HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-  CMD node healthcheck.js || exit 1
-
 # Ejecutar la aplicación
 CMD ["node", "index.js"]
