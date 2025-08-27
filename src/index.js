@@ -573,6 +573,41 @@ async function startDrivePolling() {
     }, POLLING_INTERVAL);
 }
 
+// Agrega este endpoint para los health checks de Google
+app.post('/sync/scheduled', (req, res) => {
+    console.log('✅ Health check recibido de Google');
+    res.status(200).json({
+        status: 'ok',
+        message: 'Service is running',
+        timestamp: new Date().toISOString()
+    });
+});
+
+// También agrega un endpoint GET para health checks
+app.get('/sync/scheduled', (req, res) => {
+    console.log('✅ Health check GET recibido');
+    res.status(200).json({
+        status: 'ok',
+        message: 'Service is healthy',
+        timestamp: new Date().toISOString()
+    });
+});
+
+// Endpoint raíz para health checks
+app.get('/', (req, res) => {
+    res.json({
+        service: 'Drive to GCS Sync',
+        status: 'running',
+        timestamp: new Date().toISOString(),
+        endpoints: {
+            health: '/',
+            manual_sync: 'POST /sync',
+            webhook: 'POST /sync/webhook',
+            scheduled: '/sync/scheduled'
+        }
+    });
+});
+
 // Iniciar servidor
 app.listen(PORT, async () => {
     console.log(`🚀 Servidor ejecutándose en puerto ${PORT}`);
