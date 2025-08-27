@@ -1,11 +1,18 @@
 #!/bin/bash
 
-# Variables
-PROJECT_ID="your-project-id"
+# Variables (¡ACTUALIZA ESTO CON TU PROJECT_ID REAL!)
+PROJECT_ID="eternal-brand-454501-i8"
 SERVICE_NAME="drive-to-gcs-sync"
 REGION="us-central1"
 
 echo "🚀 Desplegando Drive to GCS Sync..."
+echo "📋 Proyecto: $PROJECT_ID"
+
+# Dar permisos al servicio de Cloud Run
+echo "🔐 Configurando permisos de IAM..."
+gcloud projects add-iam-policy-binding $PROJECT_ID \
+  --member="serviceAccount:$PROJECT_ID@appspot.gserviceaccount.com" \
+  --role="roles/editor"
 
 # Construir imagen Docker
 echo "📦 Construyendo imagen Docker..."
@@ -22,7 +29,8 @@ gcloud run deploy $SERVICE_NAME \
   --memory 512Mi \
   --cpu 1 \
   --max-instances 3 \
-  --timeout 300s
+  --timeout 300s \
+  --service-account="$PROJECT_ID@appspot.gserviceaccount.com"
 
 echo "✅ Despliegue completado!"
 echo "🌐 URL del servicio:"
