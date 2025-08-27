@@ -22,7 +22,7 @@ steps:
     - '--memory'
     - '1Gi'
     - '--set-env-vars'
-    - 'BUCKET_NAME=${_BUCKET_NAME},ROOT_FOLDER_ID=${_ROOT_FOLDER_ID},WEBHOOK_URL=${_WEBHOOK_URL}'
+    - 'BUCKET_NAME=${_BUCKET_NAME},ROOT_FOLDER_ID=${_ROOT_FOLDER_ID}'
 
 images:
   - 'gcr.io/$PROJECT_ID/drive-to-gcs-sync'
